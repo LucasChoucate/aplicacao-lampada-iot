@@ -7,6 +7,3 @@ venv/
 # Segredos e bancos locais
 .env
 *.db
-
-# Rascunho antigo com credenciais do Arduino Cloud escritas no código: NÃO versionar
-server.py
