@@ -1,0 +1,35 @@
+# Blueprint do Render: cria a API (web service) + o banco PostgreSQL de uma vez.
+# Render Dashboard -> New -> Blueprint -> escolha este repositório e a branch feat/lampada-lab.
+services:
+  - type: web
+    name: lampada-iot-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Um único processo: com vários workers haveria várias pontes usando o mesmo device do Arduino Cloud.
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lampada-iot-db
+          property: connectionString
+      - key: API_KEY            # chave que o ESP32 manda no header X-API-Key
+        generateValue: true
+      - key: RETENCAO_DIAS
+        value: "30"
+      - key: PONTE_INTERVALO_S
+        value: "5"
+      - key: ARDUINO_DEVICE_ID  # Device ID do dispositivo manual "Ponte_BD" (preencher no painel)
+        sync: false
+      - key: ARDUINO_SECRET_KEY # Secret Key do dispositivo manual "Ponte_BD" (preencher no painel)
+        sync: false
+
+databases:
+  - name: lampada-iot-db
+    plan: free
+    databaseName: lampada_iot
+    user: lampada
