@@ -2,7 +2,7 @@
 
 Esta ponte é um "dispositivo manual" (Python) cadastrado no Arduino IoT Cloud.
 - A cada PONTE_INTERVALO_S segundos ela lê a leitura mais recente do banco e publica
-  as variáveis ldr1, ldr2 e refletancia na Thing -> os gráficos do dashboard atualizam sozinhos.
+  as variáveis ldr e refletancia na Thing -> os gráficos do dashboard atualizam sozinhos.
 - Quando alguém muda a variável leitura_ativa no dashboard, ela grava o valor no banco;
   o ESP32 recebe esse valor na resposta da API.
 
@@ -27,7 +27,7 @@ INTERVALO_S = float(os.getenv("PONTE_INTERVALO_S", "5"))
 
 # Nomes das variáveis criadas na Thing "Ponte_BD" do Arduino IoT Cloud.
 # Precisam ser IGUAIS aos "Variable name" do Cloud.
-VARIAVEIS_LEITURA = ("ldr1", "ldr2", "refletancia")
+VARIAVEIS_LEITURA = ("ldr", "refletancia")
 VARIAVEL_COMANDO = "leitura_ativa"
 
 _ultimo_id_enviado = None
@@ -53,12 +53,11 @@ def enviar_do_banco(client, args=None):
             leitura = db.query(Leitura).order_by(Leitura.id.desc()).first()
         if leitura is None or leitura.id == _ultimo_id_enviado:
             return
-        _definir(client, "ldr1", int(leitura.ldr1))
-        _definir(client, "ldr2", int(leitura.ldr2))
+        _definir(client, "ldr", int(leitura.ldr))
         _definir(client, "refletancia", bool(leitura.refletancia))
         _ultimo_id_enviado = leitura.id
-        log.info("enviado ao Cloud: id=%s ldr1=%s ldr2=%s refletancia=%s",
-                 leitura.id, leitura.ldr1, leitura.ldr2, leitura.refletancia)
+        log.info("enviado ao Cloud: id=%s ldr=%s refletancia=%s",
+                 leitura.id, leitura.ldr, leitura.refletancia)
     except Exception:
         # Se a exceção escapar, a biblioteca descarta esta Task para sempre.
         log.exception("falha ao enviar leitura ao Arduino Cloud")

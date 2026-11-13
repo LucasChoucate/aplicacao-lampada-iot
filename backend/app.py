@@ -46,7 +46,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="API Lâmpada Inteligente IoT",
-    description="Recebe leituras do ESP32 (2 LDRs + sensor de refletância), guarda no banco "
+    description="Recebe leituras do ESP32 (1 LDR + sensor de refletância), guarda no banco "
                 "e sincroniza com o Arduino IoT Cloud.",
     version="3.0.0",
     lifespan=lifespan,
@@ -80,8 +80,7 @@ def _limpar_se_preciso(forcar: bool = False):
 
 # ---------------- schemas ----------------
 class LeituraEntrada(BaseModel):
-    ldr1: int = Field(..., ge=0, le=4095, description="Valor bruto do LDR 1 (ADC 0..4095)")
-    ldr2: int = Field(..., ge=0, le=4095, description="Valor bruto do LDR 2 (ADC 0..4095)")
+    ldr: int = Field(..., ge=0, le=4095, description="Valor bruto do LDR (ADC 0..4095)")
     refletancia: bool = Field(..., description="Sensor de refletância: true = detectou")
     timestamp: Optional[int] = Field(None, description="Epoch em segundos (NTP). Se omitido, usa a hora do servidor.")
     dispositivo: str = Field("esp32-lampada", max_length=64)
@@ -94,8 +93,7 @@ class LeituraSaida(BaseModel):
     timestamp: datetime
     recebido_em: datetime
     dispositivo: str
-    ldr1: int
-    ldr2: int
+    ldr: int
     refletancia: bool
 
 

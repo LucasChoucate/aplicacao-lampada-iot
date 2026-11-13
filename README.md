@@ -1,6 +1,6 @@
 # Lâmpada Inteligente IoT — Camada de Aplicação (AV2)
 
-Sistema IoT com **ESP32** que lê **2 fotorresistores (LDR)** e **1 sensor de refletância**, envia as leituras
+Sistema IoT com **ESP32** que lê **1 fotorresistor (LDR)** e **1 sensor de refletância**, envia as leituras
 para uma **API em Python (FastAPI)** hospedada no **Render**, grava tudo em **PostgreSQL** e publica os dados
 num **dashboard do Arduino IoT Cloud**, que também controla o dispositivo.
 
@@ -12,20 +12,20 @@ num **dashboard do Arduino IoT Cloud**, que também controla o dispositivo.
 ```
 ┌──────────┐ HTTPS POST /leituras ┌──────────────────────┐   SQL   ┌──────────────┐
 │  ESP32   │ ───────────────────► │  API FastAPI (Render) │ ──────► │  PostgreSQL  │
-│ LDR1     │ ◄─────────────────── │                      │ ◄────── │   (Render)   │
-│ LDR2     │  resposta: config    │  thread "ponte"      │         └──────────────┘
+│ LDR      │ ◄─────────────────── │                      │ ◄────── │   (Render)   │
+│          │  resposta: config    │  thread "ponte"      │         └──────────────┘
 │ Refletân.│  (leitura_ativa)     └──────────┬───────────┘
 └──────────┘                                 │ MQTT (biblioteca arduino-iot-cloud)
                                              ▼
                                 ┌──────────────────────────┐
                                 │ Arduino IoT Cloud         │
                                 │ Thing "Ponte_BD"          │
-                                │ ldr1, ldr2, refletancia   │──► Dashboard (gráficos + indicadores)
+                                │ ldr, refletancia          │──► Dashboard (gráficos + indicadores)
                                 │ leitura_ativa (switch)    │◄── usuário liga/desliga o envio
                                 └──────────────────────────┘
 ```
 
-- **ESP32 → API:** a cada 10 s o ESP32 envia `ldr1`, `ldr2`, `refletancia` e o `timestamp` (NTP).
+- **ESP32 → API:** a cada 10 s o ESP32 envia `ldr`, `refletancia` e o `timestamp` (NTP).
 - **API → Banco:** cada leitura vira uma linha na tabela `leituras`.
 - **Banco → Arduino Cloud:** a "ponte" (`backend/ponte_arduino_cloud.py`) é um *dispositivo manual* do
   Arduino IoT Cloud. A cada 5 s ela lê a leitura mais recente do banco e atualiza as variáveis da Thing.
@@ -48,14 +48,13 @@ render.yaml                                            Blueprint de deploy no Re
 
 | Componente | Pino do componente | Pino do ESP32 |
 |---|---|---|
-| LDR 1 (divisor com resistor de 10 kΩ) | ponto médio do divisor | GPIO 34 |
-| LDR 2 (divisor com resistor de 10 kΩ) | ponto médio do divisor | GPIO 35 |
+| LDR (divisor com resistor de 10 kΩ) | ponto médio do divisor | GPIO 34 |
 | Sensor de refletância (ex.: TCRT5000) | D0 (saída digital) | GPIO 27 |
 | Todos | VCC / GND | 3V3 / GND |
 
-Divisor de tensão de cada LDR: `3V3 ── LDR ──┬── 10 kΩ ── GND`, com o ponto `┬` ligado ao GPIO.
+Divisor de tensão do LDR: `3V3 ── LDR ──┬── 10 kΩ ── GND`, com o ponto `┬` ligado ao GPIO.
 
-> Os LDRs precisam ficar em pinos do **ADC1** (32–39). O ADC2 não funciona com o Wi-Fi ligado.
+> O LDR precisa ficar em um pino do **ADC1** (32–39). O ADC2 não funciona com o Wi-Fi ligado.
 
 ### Firmware
 
@@ -120,13 +119,12 @@ python ponte_arduino_cloud.py
 
    | Nome | Tipo | Permissão | Update policy |
    |---|---|---|---|
-   | `ldr1` | Integer Number | Read Only | On change |
-   | `ldr2` | Integer Number | Read Only | On change |
+   | `ldr` | Integer Number | Read Only | On change |
    | `refletancia` | Boolean | Read Only | On change |
    | `leitura_ativa` | Boolean | Read & Write | On change |
 
 4. **Dashboards → Create**, ligando os widgets às variáveis:
-   - **Chart** + **Value** para `ldr1` e `ldr2` (luminosidade ao longo do tempo);
+   - **Chart** + **Value** para `ldr` (luminosidade ao longo do tempo);
    - **LED/Status** para `refletancia`;
    - **Switch** para `leitura_ativa` (pausa/retoma o envio do ESP32).
 
@@ -144,7 +142,7 @@ PostgreSQL gerenciado pelo Render. As tabelas são criadas automaticamente quand
 | `timestamp` | timestamptz | momento da medição (NTP do ESP32; se não houver, hora do servidor) |
 | `recebido_em` | timestamptz | momento em que a API recebeu |
 | `dispositivo` | varchar(64) | identificação do ESP32 |
-| `ldr1`, `ldr2` | integer | leitura bruta do ADC (0–4095) |
+| `ldr` | integer | leitura bruta do ADC (0–4095) |
 | `refletancia` | boolean | `true` = sensor detectou |
 
 **`configuracoes`** (chave/valor): guarda os comandos vindos do dashboard. Hoje só existe `leitura_ativa`.
@@ -169,13 +167,13 @@ Enviar uma leitura de teste sem o ESP32:
 ```bash
 curl -X POST https://<seu-servico>.onrender.com/leituras \
   -H "Content-Type: application/json" -H "X-API-Key: <API_KEY>" \
-  -d '{"ldr1": 1200, "ldr2": 3100, "refletancia": true}'
+  -d '{"ldr": 1200, "refletancia": true}'
 ```
 
 Direto no PostgreSQL (Render → banco → **Connect** → *PSQL Command*):
 
 ```sql
 SELECT * FROM leituras ORDER BY id DESC LIMIT 20;
-SELECT date_trunc('minute', timestamp) AS minuto, avg(ldr1), avg(ldr2)
+SELECT date_trunc('minute', timestamp) AS minuto, avg(ldr)
 FROM leituras GROUP BY 1 ORDER BY 1 DESC LIMIT 60;
 ```

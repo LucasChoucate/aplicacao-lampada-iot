@@ -39,8 +39,7 @@ class Leitura(Base):
     timestamp = Column(DateTime(timezone=True), nullable=False, default=agora_utc, index=True)
     recebido_em = Column(DateTime(timezone=True), nullable=False, default=agora_utc)
     dispositivo = Column(String(64), nullable=False, default="esp32-lampada")
-    ldr1 = Column(Integer, nullable=False)          # 0..4095 (ADC 12 bits do ESP32)
-    ldr2 = Column(Integer, nullable=False)          # 0..4095
+    ldr = Column(Integer, nullable=False)           # 0..4095 (ADC 12 bits do ESP32)
     refletancia = Column(Boolean, nullable=False)   # True = objeto/superfície detectada
 
 

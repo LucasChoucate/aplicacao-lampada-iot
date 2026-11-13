@@ -1,7 +1,7 @@
 /*
  * Lâmpada Inteligente IoT - Etapa 02 (Banco de Dados + Arduino IoT Cloud)
  *
- * Sensores: 2x LDR (fotorresistor) + 1x sensor de refletância (saída digital, ex.: TCRT5000)
+ * Sensores: 1x LDR (fotorresistor) + 1x sensor de refletância (saída digital, ex.: TCRT5000)
  *
  * Fluxo:  ESP32 --HTTPS POST /leituras--> API (Render) --> PostgreSQL --> ponte --> Arduino IoT Cloud
  *         A resposta da API traz "leitura_ativa", que é controlada pelo dashboard do Cloud.
@@ -26,10 +26,9 @@ const char* API_KEY = "TODO_API_KEY";
 
 const char* DISPOSITIVO = "esp32-lampada";
 
-// Pinos. ATENÇÃO: os LDRs precisam ficar em pinos do ADC1 (32, 33, 34, 35, 36, 39),
+// Pinos. ATENÇÃO: o LDR precisa ficar em um pino do ADC1 (32, 33, 34, 35, 36, 39),
 // porque o ADC2 não funciona enquanto o Wi-Fi está ligado.
-const int PINO_LDR1        = 34;  // TODO: confirme na sua montagem
-const int PINO_LDR2        = 35;  // TODO: confirme na sua montagem
+const int PINO_LDR         = 34;  // TODO: confirme na sua montagem
 const int PINO_REFLETANCIA = 27;  // TODO: confirme na sua montagem (saída digital D0 do módulo)
 
 // O TCRT5000 costuma colocar a saída em LOW quando detecta. Se o seu for o contrário, troque para false.
@@ -93,7 +92,7 @@ int requisitar(const String& caminho, const String& corpo, String& resposta) {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("\n=== Lâmpada Inteligente IoT - LDR x2 + Refletância ===");
+  Serial.println("\n=== Lâmpada Inteligente IoT - LDR + Refletância ===");
 
   pinMode(PINO_REFLETANCIA, INPUT);
   analogReadResolution(12);  // 0..4095
@@ -108,12 +107,11 @@ void loop() {
 
   conectarWiFi();
 
-  int ldr1 = analogRead(PINO_LDR1);
-  int ldr2 = analogRead(PINO_LDR2);
+  int ldr = analogRead(PINO_LDR);
   bool refletancia = digitalRead(PINO_REFLETANCIA) == (REFLETANCIA_ATIVA_EM_LOW ? LOW : HIGH);
 
-  Serial.printf("LDR1=%4d  LDR2=%4d  Refletancia=%s  leitura_ativa=%s\n",
-                ldr1, ldr2, refletancia ? "DETECTADO" : "nada", leituraAtiva ? "sim" : "nao");
+  Serial.printf("LDR=%4d  Refletancia=%s  leitura_ativa=%s\n",
+                ldr, refletancia ? "DETECTADO" : "nada", leituraAtiva ? "sim" : "nao");
 
   if (WiFi.status() != WL_CONNECTED) return;
 
@@ -122,8 +120,8 @@ void loop() {
   if (leituraAtiva) {
     char corpo[160];
     snprintf(corpo, sizeof(corpo),
-             "{\"ldr1\":%d,\"ldr2\":%d,\"refletancia\":%s,\"timestamp\":%lld,\"dispositivo\":\"%s\"}",
-             ldr1, ldr2, refletancia ? "true" : "false", timestampAtual(), DISPOSITIVO);
+             "{\"ldr\":%d,\"refletancia\":%s,\"timestamp\":%lld,\"dispositivo\":\"%s\"}",
+             ldr, refletancia ? "true" : "false", timestampAtual(), DISPOSITIVO);
     codigo = requisitar("/leituras", corpo, resposta);
     Serial.printf("POST /leituras -> %d\n", codigo);
   } else {
